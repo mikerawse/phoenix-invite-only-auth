@@ -105,9 +105,11 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
 
   use Mix.Task
 
+  require Logger
   alias Mix.Phoenix.{Context, Schema}
   alias Mix.Tasks.Phx.Gen
   alias Mix.Tasks.Phx.Gen.Auth.{HashingLibrary, Injector, Migration}
+  # alias Mix.Tasks.Phx.Gen.Auth.{HashingLibrary, Migration}
 
   @switches [
     web: :string,
@@ -116,24 +118,33 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
     table: :string,
     merge_with_existing_context: :boolean,
     prefix: :string,
-    live: :boolean
+    live: :boolean,
+    invite: :boolean
   ]
 
   @doc false
   def run(args, test_opts \\ []) do
+    Mix.Shell.IO.info("Running my custom task")
+
     if Mix.Project.umbrella?() do
       Mix.raise("mix phx.gen.auth can only be run inside an application directory")
     end
 
     {opts, parsed} = OptionParser.parse!(args, strict: @switches)
+    dbg(opts, label: "opts")
+    # dbg(parsed, label: "parsed")
+
     validate_args!(parsed)
     hashing_library = build_hashing_library!(opts)
+    # dbg(hashing_library, label: "hashing_library")
 
     context_args = OptionParser.to_argv(opts, switches: @switches) ++ parsed
-
+    dbg(context_args, label: "context_args")
     {context, schema} = Gen.Context.build(context_args, __MODULE__)
 
     context = put_live_option(context)
+    context = put_invite_option(context)
+    dbg(context, label: "context")
 
     Gen.Context.prompt_for_code_injection(context)
 
@@ -169,22 +180,24 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
       test_case_options: test_case_options(ecto_adapter),
       live?: Keyword.fetch!(context.opts, :live)
     ]
-
+    Logger.debug("binding: #{inspect(binding)}")
     paths = generator_paths()
+    Logger.debug("paths: #{inspect(paths)}")
 
     prompt_for_conflicts(context)
 
     context
     |> copy_new_files(binding, paths)
-    |> inject_conn_case_helpers(paths, binding)
-    |> inject_config(hashing_library)
-    |> maybe_inject_mix_dependency(hashing_library)
-    |> inject_routes(paths, binding)
-    |> maybe_inject_router_import(binding)
-    |> maybe_inject_router_plug()
-    |> maybe_inject_app_layout_menu()
-    |> Gen.Notifier.maybe_print_mailer_installation_instructions()
-    |> print_shell_instructions()
+    # |> inject_conn_case_helpers(paths, binding)
+    # |> inject_config(hashing_library)
+    # |> maybe_inject_mix_dependency(hashing_library)
+    # |> inject_routes(paths, binding)
+    # |> maybe_inject_router_import(binding)
+    # |> maybe_inject_router_plug()
+    # |> maybe_inject_app_layout_menu()
+    # |> Gen.Notifier.maybe_print_mailer_installation_instructions()
+    # |> print_shell_instructions()
+    dbg(context, label: "context")
   end
 
   defp web_app_name(%Context{} = context) do
@@ -273,16 +286,36 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
       ]
     ]
 
+    # case Keyword.fetch(context.opts, :invite) do
+    #   {:ok, true} ->
+    #     Mix.shell().info("Generate 'Invite' related files")
+
+    #   _ ->
+    #     Mix.shell().info("Generate 'Register' related files")
+
+    # end
+
     case Keyword.fetch(context.opts, :live) do
       {:ok, true} ->
+
         live_files = [
-          "registration_live.ex": [web_pre, "live", web_path, "#{singular}_registration_live.ex"],
-          "registration_live_test.exs": [
-            web_test_pre,
-            "live",
-            web_path,
-            "#{singular}_registration_live_test.exs"
-          ],
+
+          case Keyword.fetch(context.opts, :invite) do
+            {:ok, true} ->
+              dbg("invite")
+              {:"invitation_live.ex", [web_pre, "live", web_path, "#{singular}_invitation_live.ex"]}
+
+            _ ->
+              dbg("register")
+              {:"registration_live.ex", [web_pre, "live", web_path, "#{singular}_registration_live.ex"],
+               :"registration_live_test.exs", [
+                web_test_pre,
+                "live",
+                web_path,
+                "#{singular}_registration_live_test.exs"
+              ]}
+          end,
+
           "login_live.ex": [web_pre, "live", web_path, "#{singular}_login_live.ex"],
           "login_live_test.exs": [
             web_test_pre,
@@ -464,246 +497,246 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
     |> inject_before_final_end(test_fixtures_file)
   end
 
-  defp inject_conn_case_helpers(%Context{} = context, paths, binding) do
-    test_file = "test/support/conn_case.ex"
+  # defp inject_conn_case_helpers(%Context{} = context, paths, binding) do
+  #   test_file = "test/support/conn_case.ex"
 
-    paths
-    |> Mix.Phoenix.eval_from("priv/templates/phx.gen.auth/conn_case.exs", binding)
-    |> inject_before_final_end(test_file)
+  #   paths
+  #   |> Mix.Phoenix.eval_from("priv/templates/phx.gen.auth/conn_case.exs", binding)
+  #   |> inject_before_final_end(test_file)
 
-    context
-  end
+  #   context
+  # end
 
-  defp inject_routes(%Context{context_app: ctx_app} = context, paths, binding) do
-    web_prefix = Mix.Phoenix.web_path(ctx_app)
-    file_path = Path.join(web_prefix, "router.ex")
+  # defp inject_routes(%Context{context_app: ctx_app} = context, paths, binding) do
+  #   web_prefix = Mix.Phoenix.web_path(ctx_app)
+  #   file_path = Path.join(web_prefix, "router.ex")
 
-    paths
-    |> Mix.Phoenix.eval_from("priv/templates/phx.gen.auth/routes.ex", binding)
-    |> inject_before_final_end(file_path)
+  #   paths
+  #   |> Mix.Phoenix.eval_from("priv/templates/phx.gen.auth/routes.ex", binding)
+  #   |> inject_before_final_end(file_path)
 
-    context
-  end
+  #   context
+  # end
 
-  defp maybe_inject_mix_dependency(%Context{context_app: ctx_app} = context, %HashingLibrary{
-         mix_dependency: mix_dependency
-       }) do
-    file_path = Mix.Phoenix.context_app_path(ctx_app, "mix.exs")
+  # defp maybe_inject_mix_dependency(%Context{context_app: ctx_app} = context, %HashingLibrary{
+  #        mix_dependency: mix_dependency
+  #      }) do
+  #   file_path = Mix.Phoenix.context_app_path(ctx_app, "mix.exs")
 
-    file = File.read!(file_path)
+  #   file = File.read!(file_path)
 
-    case Injector.mix_dependency_inject(file, mix_dependency) do
-      {:ok, new_file} ->
-        print_injecting(file_path)
-        File.write!(file_path, new_file)
+  #   case Injector.mix_dependency_inject(file, mix_dependency) do
+  #     {:ok, new_file} ->
+  #       print_injecting(file_path)
+  #       File.write!(file_path, new_file)
 
-      :already_injected ->
-        :ok
+  #     :already_injected ->
+  #       :ok
 
-      {:error, :unable_to_inject} ->
-        Mix.shell().info("""
+  #     {:error, :unable_to_inject} ->
+  #       Mix.shell().info("""
 
-        Add your #{mix_dependency} dependency to #{file_path}:
+  #       Add your #{mix_dependency} dependency to #{file_path}:
 
-            defp deps do
-              [
-                #{mix_dependency},
-                ...
-              ]
-            end
-        """)
-    end
+  #           defp deps do
+  #             [
+  #               #{mix_dependency},
+  #               ...
+  #             ]
+  #           end
+  #       """)
+  #   end
 
-    context
-  end
+  #   context
+  # end
 
-  defp maybe_inject_router_import(%Context{context_app: ctx_app} = context, binding) do
-    web_prefix = Mix.Phoenix.web_path(ctx_app)
-    file_path = Path.join(web_prefix, "router.ex")
-    auth_module = Keyword.fetch!(binding, :auth_module)
-    inject = "import #{inspect(auth_module)}"
-    use_line = "use #{inspect(context.web_module)}, :router"
+  # defp maybe_inject_router_import(%Context{context_app: ctx_app} = context, binding) do
+  #   web_prefix = Mix.Phoenix.web_path(ctx_app)
+  #   file_path = Path.join(web_prefix, "router.ex")
+  #   auth_module = Keyword.fetch!(binding, :auth_module)
+  #   inject = "import #{inspect(auth_module)}"
+  #   use_line = "use #{inspect(context.web_module)}, :router"
 
-    help_text = """
-    Add your #{inspect(auth_module)} import to #{Path.relative_to_cwd(file_path)}:
+  #   help_text = """
+  #   Add your #{inspect(auth_module)} import to #{Path.relative_to_cwd(file_path)}:
 
-        defmodule #{inspect(context.web_module)}.Router do
-          #{use_line}
+  #       defmodule #{inspect(context.web_module)}.Router do
+  #         #{use_line}
 
-          # Import authentication plugs
-          #{inject}
+  #         # Import authentication plugs
+  #         #{inject}
 
-          ...
-        end
-    """
+  #         ...
+  #       end
+  #   """
 
-    with {:ok, file} <- read_file(file_path),
-         {:ok, new_file} <-
-           Injector.inject_unless_contains(
-             file,
-             inject,
-             &String.replace(&1, use_line, "#{use_line}\n\n  #{&2}")
-           ) do
-      print_injecting(file_path, " - imports")
-      File.write!(file_path, new_file)
-    else
-      :already_injected ->
-        :ok
+  #   with {:ok, file} <- read_file(file_path),
+  #        {:ok, new_file} <-
+  #          Injector.inject_unless_contains(
+  #            file,
+  #            inject,
+  #            &String.replace(&1, use_line, "#{use_line}\n\n  #{&2}")
+  #          ) do
+  #     print_injecting(file_path, " - imports")
+  #     File.write!(file_path, new_file)
+  #   else
+  #     :already_injected ->
+  #       :ok
 
-      {:error, :unable_to_inject} ->
-        Mix.shell().info("""
+  #     {:error, :unable_to_inject} ->
+  #       Mix.shell().info("""
 
-        #{help_text}
-        """)
+  #       #{help_text}
+  #       """)
 
-      {:error, {:file_read_error, _}} ->
-        print_injecting(file_path)
-        print_unable_to_read_file_error(file_path, help_text)
-    end
+  #     {:error, {:file_read_error, _}} ->
+  #       print_injecting(file_path)
+  #       print_unable_to_read_file_error(file_path, help_text)
+  #   end
 
-    context
-  end
+  #   context
+  # end
 
-  defp maybe_inject_router_plug(%Context{context_app: ctx_app} = context) do
-    web_prefix = Mix.Phoenix.web_path(ctx_app)
-    file_path = Path.join(web_prefix, "router.ex")
-    help_text = Injector.router_plug_help_text(file_path, context)
+  # defp maybe_inject_router_plug(%Context{context_app: ctx_app} = context) do
+  #   web_prefix = Mix.Phoenix.web_path(ctx_app)
+  #   file_path = Path.join(web_prefix, "router.ex")
+  #   help_text = Injector.router_plug_help_text(file_path, context)
 
-    with {:ok, file} <- read_file(file_path),
-         {:ok, new_file} <- Injector.router_plug_inject(file, context) do
-      print_injecting(file_path, " - plug")
-      File.write!(file_path, new_file)
-    else
-      :already_injected ->
-        :ok
+  #   with {:ok, file} <- read_file(file_path),
+  #        {:ok, new_file} <- Injector.router_plug_inject(file, context) do
+  #     print_injecting(file_path, " - plug")
+  #     File.write!(file_path, new_file)
+  #   else
+  #     :already_injected ->
+  #       :ok
 
-      {:error, :unable_to_inject} ->
-        Mix.shell().info("""
+  #     {:error, :unable_to_inject} ->
+  #       Mix.shell().info("""
 
-        #{help_text}
-        """)
+  #       #{help_text}
+  #       """)
 
-      {:error, {:file_read_error, _}} ->
-        print_injecting(file_path)
-        print_unable_to_read_file_error(file_path, help_text)
-    end
+  #     {:error, {:file_read_error, _}} ->
+  #       print_injecting(file_path)
+  #       print_unable_to_read_file_error(file_path, help_text)
+  #   end
 
-    context
-  end
+  #   context
+  # end
 
-  defp maybe_inject_app_layout_menu(%Context{} = context) do
-    schema = context.schema
+  # defp maybe_inject_app_layout_menu(%Context{} = context) do
+  #   schema = context.schema
 
-    if file_path = get_layout_html_path(context) do
-      case Injector.app_layout_menu_inject(schema, File.read!(file_path)) do
-        {:ok, new_content} ->
-          print_injecting(file_path)
-          File.write!(file_path, new_content)
+  #   if file_path = get_layout_html_path(context) do
+  #     case Injector.app_layout_menu_inject(schema, File.read!(file_path)) do
+  #       {:ok, new_content} ->
+  #         print_injecting(file_path)
+  #         File.write!(file_path, new_content)
 
-        :already_injected ->
-          :ok
+  #       :already_injected ->
+  #         :ok
 
-        {:error, :unable_to_inject} ->
-          Mix.shell().info("""
+  #       {:error, :unable_to_inject} ->
+  #         Mix.shell().info("""
 
-          #{Injector.app_layout_menu_help_text(file_path, schema)}
-          """)
-      end
-    else
-      {_dup, inject} = Injector.app_layout_menu_code_to_inject(schema)
+  #         #{Injector.app_layout_menu_help_text(file_path, schema)}
+  #         """)
+  #     end
+  #   else
+  #     {_dup, inject} = Injector.app_layout_menu_code_to_inject(schema)
 
-      missing =
-        context
-        |> potential_layout_file_paths()
-        |> Enum.map_join("\n", &"  * #{&1}")
+  #     missing =
+  #       context
+  #       |> potential_layout_file_paths()
+  #       |> Enum.map_join("\n", &"  * #{&1}")
 
-      Mix.shell().error("""
+  #     Mix.shell().error("""
 
-      Unable to find an application layout file to inject user menu items.
+  #     Unable to find an application layout file to inject user menu items.
 
-      Missing files:
+  #     Missing files:
 
-      #{missing}
+  #     #{missing}
 
-      Please ensure this phoenix app was not generated with
-      --no-html. If you have changed the name of your application
-      layout file, please add the following code to it where you'd
-      like the #{schema.singular} menu items to be rendered.
+  #     Please ensure this phoenix app was not generated with
+  #     --no-html. If you have changed the name of your application
+  #     layout file, please add the following code to it where you'd
+  #     like the #{schema.singular} menu items to be rendered.
 
-      #{inject}
-      """)
-    end
+  #     #{inject}
+  #     """)
+  #   end
 
-    context
-  end
+  #   context
+  # end
 
-  defp get_layout_html_path(%Context{} = context) do
-    context
-    |> potential_layout_file_paths()
-    |> Enum.find(&File.exists?/1)
-  end
+  # defp get_layout_html_path(%Context{} = context) do
+  #   context
+  #   |> potential_layout_file_paths()
+  #   |> Enum.find(&File.exists?/1)
+  # end
 
-  defp potential_layout_file_paths(%Context{context_app: ctx_app}) do
-    web_prefix = Mix.Phoenix.web_path(ctx_app)
+  # defp potential_layout_file_paths(%Context{context_app: ctx_app}) do
+  #   web_prefix = Mix.Phoenix.web_path(ctx_app)
 
-    for file_name <- ~w(root.html.heex app.html.heex) do
-      Path.join([web_prefix, "components", "layouts", file_name])
-    end
-  end
+  #   for file_name <- ~w(root.html.heex app.html.heex) do
+  #     Path.join([web_prefix, "components", "layouts", file_name])
+  #   end
+  # end
 
-  defp inject_config(context, %HashingLibrary{} = hashing_library) do
-    file_path =
-      if Mix.Phoenix.in_umbrella?(File.cwd!()) do
-        Path.expand("../../")
-      else
-        File.cwd!()
-      end
-      |> Path.join("config/test.exs")
+  # defp inject_config(context, %HashingLibrary{} = hashing_library) do
+  #   file_path =
+  #     if Mix.Phoenix.in_umbrella?(File.cwd!()) do
+  #       Path.expand("../../")
+  #     else
+  #       File.cwd!()
+  #     end
+  #     |> Path.join("config/test.exs")
 
-    file =
-      case read_file(file_path) do
-        {:ok, file} -> file
-        {:error, {:file_read_error, _}} -> "use Mix.Config\n"
-      end
+  #   file =
+  #     case read_file(file_path) do
+  #       {:ok, file} -> file
+  #       {:error, {:file_read_error, _}} -> "use Mix.Config\n"
+  #     end
 
-    case Injector.test_config_inject(file, hashing_library) do
-      {:ok, new_file} ->
-        print_injecting(file_path)
-        File.write!(file_path, new_file)
+  #   case Injector.test_config_inject(file, hashing_library) do
+  #     {:ok, new_file} ->
+  #       print_injecting(file_path)
+  #       File.write!(file_path, new_file)
 
-      :already_injected ->
-        :ok
+  #     :already_injected ->
+  #       :ok
 
-      {:error, :unable_to_inject} ->
-        help_text = Injector.test_config_help_text(file_path, hashing_library)
+  #     {:error, :unable_to_inject} ->
+  #       help_text = Injector.test_config_help_text(file_path, hashing_library)
 
-        Mix.shell().info("""
+  #       Mix.shell().info("""
 
-        #{help_text}
-        """)
-    end
+  #       #{help_text}
+  #       """)
+  #   end
 
-    context
-  end
+  #   context
+  # end
 
-  defp print_shell_instructions(%Context{} = context) do
-    Mix.shell().info("""
+  # defp print_shell_instructions(%Context{} = context) do
+  #   Mix.shell().info("""
 
-    Please re-fetch your dependencies with the following command:
+  #   Please re-fetch your dependencies with the following command:
 
-        $ mix deps.get
+  #       $ mix deps.get
 
-    Remember to update your repository by running migrations:
+  #   Remember to update your repository by running migrations:
 
-        $ mix ecto.migrate
+  #       $ mix ecto.migrate
 
-    Once you are ready, visit "/#{context.schema.plural}/register"
-    to create your account and then access "/dev/mailbox" to
-    see the account confirmation email.
-    """)
+  #   Once you are ready, visit "/#{context.schema.plural}/register"
+  #   to create your account and then access "/dev/mailbox" to
+  #   see the account confirmation email.
+  #   """)
 
-    context
-  end
+  #   context
+  # end
 
   defp router_scope(%Context{schema: schema} = context) do
     prefix = Module.concat(context.web_module, schema.web_namespace)
@@ -856,6 +889,19 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
 
   defp test_case_options(Ecto.Adapters.Postgres), do: ", async: true"
   defp test_case_options(adapter) when is_atom(adapter), do: ""
+
+  defp put_invite_option(schema) do
+    opts =
+      case Keyword.fetch(schema.opts, :invite) do
+        {:ok, _invite?} ->
+          schema.opts
+
+        _ ->
+            Keyword.put_new(schema.opts, :invite, false)
+      end
+
+    Map.put(schema, :opts, opts)
+  end
 
   defp put_live_option(schema) do
     opts =
