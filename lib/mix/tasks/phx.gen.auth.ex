@@ -117,7 +117,8 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
     merge_with_existing_context: :boolean,
     prefix: :string,
     live: :boolean,
-    compile: :boolean
+    compile: :boolean,
+    invite: :boolean
   ]
 
   @doc false
@@ -290,6 +291,13 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
             "#{singular}_live",
             "registration_test.exs"
           ],
+          "invitation_live.ex": [
+            web_pre,
+            "live",
+            web_path,
+            "#{singular}_live",
+            "invitation.ex"
+          ],
           "login_live.ex": [web_pre, "live", web_path, "#{singular}_live", "login.ex"],
           "login_live_test.exs": [
             web_test_pre,
@@ -361,6 +369,13 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
             web_path,
             "#{singular}_live",
             "confirmation_instructions_test.exs"
+          ],
+          "invitation_acceptance_live.ex": [
+            web_pre,
+            "live",
+            web_path,
+            "#{singular}_live",
+            "invitation_acceptance.ex"
           ]
         ]
 
