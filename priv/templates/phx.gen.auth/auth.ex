@@ -94,6 +94,7 @@ defmodule <%= inspect auth_module %> do
     {<%= schema.singular %>_token, conn} = ensure_<%= schema.singular %>_token(conn)
     <%= schema.singular %> = <%= schema.singular %>_token && <%= inspect context.alias %>.get_<%= schema.singular %>_by_session_token(<%= schema.singular %>_token)
     assign(conn, :current_<%= schema.singular %>, <%= schema.singular %>)
+    |> assign(:no_<%= schema.plural %>?, <%= inspect context.alias %>.no_<%= schema.plural %>?())
   end
 
   defp ensure_<%= schema.singular %>_token(conn) do
