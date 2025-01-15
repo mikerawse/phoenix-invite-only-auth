@@ -182,6 +182,14 @@ defmodule Mix.Tasks.Phx.Gen.Auth.Injector do
         </li>
         <li>
           <.link
+            href={~p"#{schema.route_prefix}/invite"}
+            class="#{link_tailwind_classes}"
+          >
+            Invite
+          </.link>
+        </li>
+        <li>
+          <.link
             href={~p"#{schema.route_prefix}/log-out"}
             method="delete"
             class="#{link_tailwind_classes}"
@@ -190,7 +198,7 @@ defmodule Mix.Tasks.Phx.Gen.Auth.Injector do
           </.link>
         </li>
       <% else %>
-        <li>
+        <li :if={@no_#{schema.plural}?}>
           <.link
             href={~p"#{schema.route_prefix}/register"}
             class="#{link_tailwind_classes}"
