@@ -89,6 +89,7 @@ defmodule Mix.Tasks.Phx.Gen.Context do
     merge_with_existing_context: :boolean,
     prefix: :string,
     live: :boolean,
+    invite: :boolean,
     compile: :boolean,
     primary_key: :string
   ]
