@@ -76,4 +76,28 @@ defmodule <%= inspect context.module %>.<%= inspect schema.alias %>Notifier do
     ==============================
     """)
   end
+
+  @doc """
+  Deliver instructions to invite a <%= schema.singular %>.
+  """
+  def deliver_invitation_instructions(<%= schema.singular %>, sender, url) do
+    deliver(<%= schema.singular %>.email, "Invitation instructions", """
+
+    ==============================
+
+    Hi #{<%= schema.singular %>.email},
+
+    You have been invited by #{sender.email} to join our platform.
+
+    You can accept the invitation by visiting the URL below:
+
+    #{url}
+
+    You will be required to set a password for your account, and then you can log in.
+
+    If you didn't request this invitation, please ignore this.
+
+    ==============================
+    """)
+  end
 end

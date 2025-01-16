@@ -52,6 +52,8 @@
   """
   def get_<%= schema.singular %>!(id), do: Repo.get!(<%= inspect schema.alias %>, id)
 
+  def no_<%= schema.plural %>?(), do: Repo.aggregate(<%= inspect schema.alias %>, :count, :id) == 0
+
   ## <%= schema.human_singular %> registration
 
   @doc """
@@ -83,6 +85,39 @@
   """
   def change_<%= schema.singular %>_registration(%<%= inspect schema.alias %>{} = <%= schema.singular %>, attrs \\ %{}) do
     <%= inspect schema.alias %>.registration_changeset(<%= schema.singular %>, attrs, hash_password: false, validate_email: false)
+  end
+
+  ## <%= schema.human_singular %> invitation
+
+  @doc """
+  Invites a user<%= schema.singular %>.
+
+  ## Examples
+
+      iex> invite_<%= schema.singular %>(%{field: value})
+      {:ok, %<%= inspect schema.alias %>{}}
+
+      iex> invite_<%= schema.singular %>(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def invite_<%= schema.singular %>(attrs) do
+    %<%= inspect schema.alias %>{}
+    |> <%= inspect schema.alias %>.invitation_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking <%= schema.singular %>> invitation changes.
+
+  ## Examples
+
+      iex> change_<%= schema.singular %>_invitation(<%= schema.singular %>)
+      %Ecto.Changeset{data: %<%= inspect schema.alias %>{}}
+
+  """
+  def change_<%= schema.singular %>_invitation(%User{} = <%= schema.singular %>, attrs \\ %{}) do
+    <%= inspect schema.alias %>.invitation_changeset(<%= schema.singular %>, attrs)
   end
 
   ## Settings
@@ -259,6 +294,14 @@
     end
   end
 
+  def deliver_<%= schema.singular %>_invitation_instructions(%<%= inspect schema.alias %>{} = <%= schema.singular %>, %<%= inspect schema.alias %>{} = sender, invitation_url_fun)
+      when is_function(invitation_url_fun, 1) do
+    {encoded_token, <%= schema.singular %>_token} = <%= inspect schema.alias %>Token.build_email_token(<%= schema.singular %>, "invite")
+    Repo.insert!(<%= schema.singular %>_token)
+    <%= inspect schema.alias %>Notifier.deliver_invitation_instructions(<%= schema.singular %>, sender, invitation_url_fun.(encoded_token))
+  end
+
+
   @doc """
   Confirms a <%= schema.singular %> by the given token.
 
@@ -315,6 +358,15 @@
     with {:ok, query} <- <%= inspect schema.alias %>Token.verify_email_token_query(token, "reset_password"),
          %<%= inspect schema.alias %>{} = <%= schema.singular %> <- Repo.one(query) do
       <%= schema.singular %>
+    else
+      _ -> nil
+    end
+  end
+
+  def get_<%= schema.singular %>_by_invite_<%= schema.singular %>_token(token) do
+    with {:ok, query} <- <%= inspect schema.alias %>Token.verify_email_token_query(token, "invite"),
+         %<%= inspect schema.alias %>{} = <%= schema.singular %> <- Repo.one(query) do
+          <%= schema.singular %>
     else
       _ -> nil
     end
