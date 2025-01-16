@@ -10,6 +10,8 @@
       live "/<%= schema.plural %>/log-in", <%= inspect schema.alias %>Live.Login, :new
       live "/<%= schema.plural %>/reset-password", <%= inspect schema.alias %>Live.ForgotPassword, :new
       live "/<%= schema.plural %>/reset-password/:token", <%= inspect schema.alias %>Live.ResetPassword, :edit
+
+      live "/<%= schema.plural %>/accept-invitation/:token", <%= inspect schema.alias %>Live.InvitationAcceptance, :new
     end
 
     post "/<%= schema.plural %>/log-in", <%= inspect schema.alias %>SessionController, :create<% else %>
@@ -31,6 +33,8 @@
       on_mount: [{<%= inspect auth_module %>, :ensure_authenticated}] do
       live "/<%= schema.plural %>/settings", <%= inspect schema.alias %>Live.Settings, :edit
       live "/<%= schema.plural %>/settings/confirm-email/:token", <%= inspect schema.alias %>Live.Settings, :confirm_email
+
+      live "/<%= schema.plural %>/invite", <%= inspect schema.alias %>Live.Invitation, :new
     end<% else %>
 
     get "/<%= schema.plural %>/settings", <%= inspect schema.alias %>SettingsController, :edit
