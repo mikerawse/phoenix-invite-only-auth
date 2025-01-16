@@ -14,6 +14,18 @@ defmodule <%= inspect schema.module %> do
   end
 
   @doc """
+  A <%= schema.singular %> changeset for invitation.
+
+  It is important to validate the length of the email.
+  """
+  def invitation_changeset(<%= schema.singular %>, attrs) do
+    <%= schema.singular %>
+    |> cast(attrs, [:email])
+    |> validate_email(validate_email: true)
+    |> put_change(:hashed_password, "not a hashed password")
+  end
+
+  @doc """
   A <%= schema.singular %> changeset for registration.
 
   It is important to validate the length of both email and password.
