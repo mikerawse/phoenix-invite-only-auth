@@ -137,6 +137,8 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
     {context, schema} = Gen.Context.build(context_args, __MODULE__)
 
     context = put_live_option(context)
+    context = put_invite_option(context)
+
     Gen.Context.prompt_for_code_injection(context)
 
     if "--no-compile" not in args do
@@ -168,7 +170,8 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
       router_scope: router_scope(context),
       web_path_prefix: web_path_prefix(schema),
       test_case_options: test_case_options(ecto_adapter),
-      live?: Keyword.fetch!(context.opts, :live)
+      live?: Keyword.fetch!(context.opts, :live),
+      invite?: Keyword.fetch!(context.opts, :invite)
     ]
 
     paths = Mix.Phoenix.generator_paths()
@@ -904,6 +907,19 @@ defmodule Mix.Tasks.Phx.Gen.Auth do
           else
             Keyword.put_new(schema.opts, :live, false)
           end
+      end
+
+    Map.put(schema, :opts, opts)
+  end
+
+  defp put_invite_option(schema) do
+    opts =
+      case Keyword.fetch(schema.opts, :invite) do
+        {:ok, _invite?} ->
+          schema.opts
+
+        _ ->
+          Keyword.put_new(schema.opts, :invite, false)
       end
 
     Map.put(schema, :opts, opts)
