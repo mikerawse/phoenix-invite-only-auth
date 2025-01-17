@@ -49,14 +49,20 @@ defmodule <%= inspect context.web_module %>.<%= inspect Module.concat(schema.web
   end
 
   def mount(_params, _session, socket) do
-    changeset = <%= inspect context.alias %>.change_<%= schema.singular %>_registration(%<%= inspect schema.alias %>{})
+    case <%= inspect context.alias %>.no_<%= schema.plural %>?() do
+      true ->
+        changeset = <%= inspect context.alias %>.change_<%= schema.singular %>_registration(%<%= inspect schema.alias %>{})
 
-    socket =
-      socket
-      |> assign(trigger_submit: false, check_errors: false)
-      |> assign_form(changeset)
+        socket =
+          socket
+          |> assign(trigger_submit: false, check_errors: false)
+          |> assign_form(changeset)
 
-    {:ok, socket, temporary_assigns: [form: nil]}
+        {:ok, socket, temporary_assigns: [form: nil]}
+
+      false ->
+        raise "New registrations are not allowed"
+      end
   end
 
   def handle_event("save", %{"<%= schema.singular %>" => <%= schema.singular %>_params}, socket) do
