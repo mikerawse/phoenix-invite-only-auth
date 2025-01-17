@@ -6,13 +6,6 @@ defmodule <%= inspect context.web_module %>.<%= inspect Module.concat(schema.web
     <div class="mx-auto max-w-sm">
       <.header class="text-center">
         Log in to account
-        <:subtitle>
-          Don't have an account?
-          <.link navigate={~p"<%= schema.route_prefix %>/register"} class="font-semibold text-brand hover:underline">
-            Sign up
-          </.link>
-          for an account now.
-        </:subtitle>
       </.header>
 
       <.simple_form for={@form} id="login_form" action={~p"<%= schema.route_prefix %>/log-in"} phx-update="ignore">
