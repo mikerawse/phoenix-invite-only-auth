@@ -9,7 +9,8 @@ defmodule Phoenix.MixProject do
   end
 
   @version "1.8.0-dev"
-  @scm_url "https://github.com/phoenixframework/phoenix"
+  # @scm_url "https://github.com/phoenixframework/phoenix"
+  @scm_url "https://github.com/mikerawse/phoenix-invite-only-auth"
 
   # If the elixir requirement is updated, we need to make the installer
   # use at least the minimum requirement used here. Although often the

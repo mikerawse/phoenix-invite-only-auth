@@ -90,7 +90,7 @@
   ## <%= schema.human_singular %> invitation
 
   @doc """
-  Invites a user<%= schema.singular %>.
+  Invites a <%= schema.singular %>.
 
   ## Examples
 
@@ -116,7 +116,7 @@
       %Ecto.Changeset{data: %<%= inspect schema.alias %>{}}
 
   """
-  def change_<%= schema.singular %>_invitation(%User{} = <%= schema.singular %>, attrs \\ %{}) do
+  def change_<%= schema.singular %>_invitation(<%= schema.singular %>, attrs \\ %{}) do
     <%= inspect schema.alias %>.invitation_changeset(<%= schema.singular %>, attrs)
   end
 
